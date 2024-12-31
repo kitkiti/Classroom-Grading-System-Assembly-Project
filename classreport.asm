@@ -132,16 +132,19 @@ MAIN ENDP
 ;------;
 ; Initialize data (dummy data for testing)
 InitializeData PROC
+    push ax
     xor si, si             ; Array index
     mov ch, 0h
     mov cl, student_count  ; Number of students
     
     InitLoop:
-        mov student_ids[si], si ; Assign Student ID as the index
-        mov marks[si], si       ; Assign marks (example values)
+        mov ax, si
+        mov student_ids[si], al ; Assign Student ID as the index
+        mov marks[si], al       ; Assign marks (example values)
         mov grades[si], 'A'     ; Assign grade (example values)
         inc si
         loop InitLoop
+    pop ax
     ret
 InitializeData ENDP
 

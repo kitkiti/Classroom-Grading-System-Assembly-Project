@@ -110,10 +110,10 @@ MAIN PROC
     call InitializeData
 
     ; Calculate the average
-    call CalcAverage
+    ;call CalcAverage
 
     ; Display the grades and summary
-    call DisplayGrades
+    ;call DisplayGrades
         
     ; Exit to DOS
     MOV AX, 4C00H
@@ -133,15 +133,16 @@ MAIN ENDP
 ; Initialize data (dummy data for testing)
 InitializeData PROC
     xor si, si             ; Array index
-    mov cx, student_count  ; Number of students
-
+    mov ch, 0h
+    mov cl, student_count  ; Number of students
+    
     InitLoop:
         mov student_ids[si], si ; Assign Student ID as the index
         mov marks[si], si       ; Assign marks (example values)
         mov grades[si], 'A'     ; Assign grade (example values)
         inc si
         loop InitLoop
-        ret
+    ret
 InitializeData ENDP
 
 

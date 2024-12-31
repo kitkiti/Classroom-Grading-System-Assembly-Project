@@ -85,7 +85,7 @@ MAIN PROC
     ;------;
     PrintString greeting
     
-    ; Prompt user for the number of students
+    ; Prompt user for the number of students (only works for one byte - kept for testing)
     mov ah, 1             ; DOS function to take a single character input
     int 21h               ; Input student count
     sub al, 30h           ; Convert ASCII to numeric

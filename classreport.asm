@@ -1,12 +1,20 @@
 .MODEL SMALL
 ;----------------------------------------------------------;
-;DEFINE MACROS HERE
-;ADRITA
+;DEFINE MACROS HERE 
+;GLOBAL
+PrintString MACRO addr
+    lea dx, addr   
+    mov ah, 9      
+    int 21h
+ENDM
+
 PrintChar MACRO char
     mov dl, char
     mov ah, 2
     int 21h
 ENDM
+;ADRITA
+; Placeholder for Adrita's macros
 
 ;DIPITA
 ; Placeholder for Dipita's macros
@@ -18,10 +26,10 @@ ENDM
 .STACK 100H
 
 .DATA
-; Variables and arrays
+; Variables, strings and arrays
 numbers db 1, 2, 3, 4, 5  ; Example array
-temp db ?                 ; Temporary storage
-greeting db 'Hello, World!$', 0  ; Example string
+temp db ?                 ; Temporary variable
+greeting db "Hello, World!$"  ; Example string
 
 .CODE
 ;----------------------------------------------------------;

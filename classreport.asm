@@ -535,8 +535,8 @@ CalcAverage PROC
         mov bl, [si]          ; Load current mark into BX
         mov bh, 0
         add ax, bx            ; Add BX to the running total (AX)
-        inc si             ; Move to the next mark (each mark is 2 bytes)
-        loop SumLoop          ; Repeat until all students are processed
+        inc si             ; Move to the next mark
+        loop SumLoop         
 
     ; AX has sum
     mov dx, 0

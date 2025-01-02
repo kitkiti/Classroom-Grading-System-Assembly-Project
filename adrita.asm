@@ -62,12 +62,11 @@ NumLength MACRO num
     pop ax
 ENDM
 
-PrintRow MACRO id, mrk, grd
+PrintRow MACRO id, mrk, grd, cgp
     push ax
     push dx
     push cx
     push bx
-    push si
 
     ; Print the left border
     PrintString column_separator
@@ -113,7 +112,7 @@ PrintRow MACRO id, mrk, grd
     call PrintSpaces
     
     ; Step 1: Calculate the integer part
-    call MARK_TO_GPA          ; Load CGPA value (375 for example)
+    mov ax, cgp               ; Load CGPA value (375 for example)
     mov bl, 100               ; Divisor
     div bl                    ; AX / BX -> Quotient in AL (integer part), Remainder in AH
     
@@ -132,7 +131,7 @@ PrintRow MACRO id, mrk, grd
     
     ; Print right border
     PrintString column_separator
-    pop si
+    
     pop bx
     pop cx
     pop dx
@@ -159,17 +158,18 @@ ENDM
 ;----------------------------------------------------------;
 ;INITIALIZE ARRAYS HERE
 max_students db 50          ; Maximum number of students
-
+student_count db ?          ; Actual number of students (input by the user)
 student_ids db 50 dup(0)    ; Array for Student IDs
 marks db 50 dup(0)          ; Array for Marks
 grades db 50 dup('?')       ; Array for Grades
-
+cgpa dw 50 dup(0)           ; Array for cgpa
 ;------------------------x---------------------------------;
 
 
 
 ;----------------------------------------------------------;
 ;INITIALIZE STRINGS HERE
+greeting db "Welcome to the Student Grading System!", 0Dh, 0Ah, "$"
 header db "+-------------------+-------------------+-------------------+------------------+", 0Dh, 0Ah, "|    Student ID     |       Marks       |       Grade       |       CGPA       |", 0Dh, 0Ah, "$"
 separator db "+-------------------+-------------------+-------------------+------------------+", 0Dh, 0Ah, "$"
 footer db "+-------------------+-------------------+-------------------+------------------+", 0Dh, 0Ah, "$"
@@ -177,18 +177,6 @@ footer db "+-------------------+-------------------+-------------------+--------
 average_label db "Class Average: $"
 num_students_label db "Total Students: $"
 column_separator db "|$"
-
-
-gap1 db "                $"
-welcome db "Welcome to the classroom grading system$"
-newline db 0Dh, 0Ah, "$"
-id_inp db "Enter Student's ID: $"
-indent db "                    $"  
-indent2 db "                       $"
-marks_inp db "Enter Student's marks: $"      
-err db " (Please provide valid marks) $"
-
-msg1 db "After sorting by marks: ", 0Dh, 0Ah, "$"
 ;------------------------x---------------------------------; 
 
 
@@ -197,13 +185,6 @@ msg1 db "After sorting by marks: ", 0Dh, 0Ah, "$"
 ;INITIALIZE VARIABLES HERE
 temp db ?                  ; Temporary variable for calculations
 rem dw ?
-student_count db ?         ; Actual number of students (input by the user)
-
-
-tempID db ?
-tempMarks db ?
-tempGrade db ?
-cgp db ?
 ;------------------------x---------------------------------;
 
 
@@ -220,259 +201,54 @@ MAIN PROC
     ;------;
     ;GLOBAL;
     ;------;
-
-
-
-    ;------;
-    ;DIPITA;
-    ;------;
-    ; Display gap1
-    lea dx, gap1
-    mov ah, 9
-    int 21h
+    PrintString greeting
     
-    ; Display welcome message
-    lea dx, welcome
-    mov ah, 9
-    int 21h
-    
-    ; Add a newline
-    lea dx, newline
-    mov ah, 9
-    int 21h
-    
-    ; Prompt user for number of students
-    mov cx, 0            ; Clear CX
-    mov ah, 1
-    int 21h
-    sub al, 30h          ; Convert ASCII to numeric
-    mul cx
-    mov cl, al           ; Read tens place
-    mov ah, 1
-    int 21h
-    sub al, 30h
-    add cl, al           ; Combine digits
-    mov student_count, cl ; Store student count
-;    jmp Adrita
-    ; Validate student_count
-    mov al, student_count ; Load student_count into AL
-    cmp al, max_students  ; Compare AL (student_count) with max_students
-    jle valid_count       ; Jump if less than or equal to max_students
-    mov al, max_students  ; Cap student_count to max_students
-    mov student_count, al ; Store capped value back
-    
-    valid_count:
-    
-    ; Initialize variables
-    mov si, 0            ; Index for IDs and marks
-    mov ch, 0
-    mov cl, student_count ; Loop for number of students
-    
-    ; Input Student IDs
-    lea dx, newline
-    mov ah, 9
-    int 21h
-    
-    lea dx, id_inp
-    mov ah, 9
-    int 21h
-    
-    input_ids:
-    mov ax, 0            ; Clear AX (to hold final result)
+    ; Prompt user for the number of students (only works for one byte - kept for testing)
+    mov ah, 1             ; DOS function to take a single character input
+    int 21h               ; Input student count
+    sub al, 30h           ; Convert ASCII to numeric
     mov bl, 10
-    mov bh, 0            ; Multiplier for tens place
-    
-    ; Read tens place
-    mov ah, 1
-    int 21h
-    sub al, 30h          ; Convert ASCII to numeric
     mul bl
-    mov bx, ax
-    
-    ; Read units place
+    mov bl, al
     mov ah, 1
     int 21h
     sub al, 30h
-    add bx, ax
+    add al, bl
     
-    ; Store the ID
-    mov student_ids[si], bl
     
-    lea dx, newline
-    mov ah, 9
-    int 21h
+    mov student_count, al ; Store the count
     
-    lea dx, indent
-    mov ah, 9
-    int 21h
+    PrintChar 0Dh
+    PrintChar 0Ah
     
-    add si, 1            ; Move to next ID slot
-    loop input_ids
-    
-    ; Input Marks
-    lea dx, newline
-    mov ah, 9
-    int 21h
-    
-    lea dx, marks_inp
-    mov ah, 9
-    int 21h
-    
-    mov si, 0            ; Reset index for marks
-    mov ch, 0
-    mov cl, student_count ; Loop for number of students
-    
-    input_marks:
-    mov ax, 0            ; Clear AX (to hold final result)
-    mov bl, 100          ; Multiplier for hundreds place
-    
-    ; Read hundreds place
-    mov ah, 1
-    int 21h
-    sub al, 30h          ; Convert ASCII to numeric
-    mul bl
-    mov dx, ax
-    
-    ; Read tens place
-    mov bl, 10
-    mov ah, 1
-    int 21h
-    sub al, 30h
-    mul bl
-    add dx, ax
-    
-    ; Read units place
-    mov ah, 1
-    int 21h
-    sub al, 30h
-    add dx, ax
-    
-    ; Store the Marks
-    mov marks[si], dl
-    
-    lea dx, newline
-    mov ah, 9
-    int 21h
-    
-    lea dx, indent2
-    mov ah, 9
-    int 21h
-    
-    inc si
-    loop input_marks
-    
-    ; Add a newline before displaying grades
-    lea dx, newline
-    mov ah, 9
-    int 21h
     
     ;---;
     ;MIM;
     ;---;
-    ; Assign letter grades and CGPA based on marks
-    MOV CH, 0
-    MOV CL, student_count        ; Loop for the number of students
-    MOV SI, 0                    ; Starting index
-assign_grades_and_cgpa:
-    MOV AL, marks[SI]            ; Load marks into AL register
-    CMP AL, 80
-    JGE grade_A
-    CMP AL, 70
-    JGE grade_B
-    CMP AL, 60
-    JGE grade_C
-    CMP AL, 50
-    JGE grade_D
-    MOV grades[SI], 'F'          ; If below 50, grade is 'F'
-    JMP next_student
+    ; Placeholder for Mim's main code
 
-grade_A:
-    MOV grades[SI], 'A'
-    JMP next_student
+    ;------;
+    ;DIPITA;
+    ;------;
+    ; Placeholder for Dipita's main code
 
-grade_B:
-    MOV grades[SI], 'B'
-    JMP next_student
-
-grade_C:
-    MOV grades[SI], 'C'
-    JMP next_student
-
-grade_D:
-    MOV grades[SI], 'D'
-
-next_student:
-    INC SI
-    LOOP assign_grades_and_cgpa
-    ;call DisplayGrades
-
-    ; Bubble Sort Algorithm to sort by marks
-    MOV CH, 0
-    MOV CL, student_count        ; Outer loop: number of students - 1 iterations
-    DEC CX                       ; Reduce by 1 for sorting passes
-outer_loop:
-    MOV SI, 0                    ; Start from the first student
-    MOV DI, 1                    ; Compare with the next student
-    MOV BH, 0
-    MOV BL, student_count
-    DEC BX                       ; Number of comparisons in each pass
-inner_loop:
-    MOV AL, marks[SI]
-    MOV AH, marks[DI]
-    CMP AL, AH
-    JG swap_elements             ; If marks[SI] > marks[DI], swap
-
-next_iteration:
-    INC SI
-    INC DI
-    DEC BX
-    JNZ inner_loop
-
-    DEC CX
-    JNZ outer_loop
-
-exit_program:
-    PrintString msg1
-    jmp Adrita
-
-swap_elements:
-    ; Swap marks
-    MOV AL, marks[SI]
-    MOV tempMarks, AL
-    MOV AL, marks[DI]
-    MOV marks[SI], AL
-    MOV AL, tempMarks
-    MOV marks[DI], AL
-
-    ; Swap student ID
-    MOV AL, student_ids[SI]
-    MOV tempID, AL
-    MOV AL, student_ids[DI]
-    MOV student_ids[SI], AL
-    MOV AL, tempID
-    MOV student_ids[DI], AL
-
-    ; Swap grades
-    MOV AL, grades[SI]
-    MOV tempGrade, AL
-    MOV AL, grades[DI]
-    MOV grades[SI], AL
-    MOV AL, tempGrade
-    MOV grades[DI], AL
-
-    ; Return to inner loop
-    JMP next_iteration    
-
-Adrita:
     ;------;
     ;ADRITA;
     ;------;
 
     ; Initialize student data
-    ;call InitializeData
+    call InitializeData
+    
+    mov ax, 350d
+    mov rem, ax
+    NumLength ax
+    call PrintDigits
+    PrintChar 0Dh
+    PrintChar 0Ah
+
 
     ; Display the grades and summary
-    call DisplayGrades
+    ;call DisplayGrades
     
     PrintString average_label
     ; Calculate the average
@@ -501,19 +277,26 @@ MAIN ENDP
 ; Initialize data (dummy data for testing)
 InitializeData PROC
     push ax
-    push si
+    push bx
     xor si, si             ; Array index
     mov ch, 0h
     mov cl, student_count  ; Number of students
+    mov bx, 375d           ; Initialize BX with the starting CGPA value (375d)
     
     InitLoop:
         mov ax, si
         mov student_ids[si], al ; Assign Student ID as the index
         mov marks[si], al       ; Assign marks (example values)
         mov grades[si], 'A'     ; Assign grade (example values)
+        
+        ; Initialize CGPA array
+        mov cgpa[si*2], bx      ; Assign the full word (BX) to cgpa array
+        inc bx                  ; Increment BX for the next CGPA value
+        
         inc si
         loop InitLoop
-    pop si    
+        
+    pop bx
     pop ax
     ret
 InitializeData ENDP
@@ -598,7 +381,7 @@ DisplayGrades PROC
     ; Iterate through student data
     DisplayLoop:
         PrintString separator
-        PrintRow student_ids[si], marks[si], grades[si]
+        PrintRow student_ids[si], marks[si], grades[si], cgpa[si*2]
         inc si
         loop DisplayLoop
         
@@ -677,94 +460,7 @@ PrintDigits ENDP
 ;---;
 ;MIM;
 ;---;
-MARK_TO_GPA PROC
-    ; Convert marks in AX to GPA on a 4.0 scale
-    CMP AX, 90
-    JGE GPA_4_0          ; Marks >= 90, GPA = 4.0
-
-    CMP AX, 85
-    JGE GPA_3_7          ; 85 <= Marks < 90, GPA = 3.7
-
-    CMP AX, 80
-    JGE GPA_3_3          ; 80 <= Marks < 85, GPA = 3.3
-
-    CMP AX, 75
-    JGE GPA_3_0          ; 75 <= Marks < 80, GPA = 3.0
-
-    CMP AX, 70
-    JGE GPA_2_7          ; 70 <= Marks < 75, GPA = 2.7
-
-    CMP AX, 65
-    JGE GPA_2_3          ; 65 <= Marks < 70, GPA = 2.3
-
-    CMP AX, 60
-    JGE GPA_2_0          ; 60 <= Marks < 65, GPA = 2.0
-
-    CMP AX, 57
-    JGE GPA_1_7          ; 57 <= Marks < 60, GPA = 1.7
-
-    CMP AX, 55
-    JGE GPA_1_3          ; 55 <= Marks < 57, GPA = 1.3
-
-    CMP AX, 52
-    JGE GPA_1_0          ; 52 <= Marks < 55, GPA = 1.0
-
-    CMP AX, 50
-    JGE GPA_0_7          ; 50 <= Marks < 52, GPA = 0.7
-
-    JMP GPA_0_0          ; Marks < 50, GPA = 0.0
-
-    ; GPA Labels and Assignments
-GPA_4_0:
-    MOV AX, 400          ; GPA = 4.00
-    RET
-
-GPA_3_7:
-    MOV AX, 370          ; GPA = 3.70
-    RET
-
-GPA_3_3:
-    MOV AX, 330          ; GPA = 3.30
-    RET
-
-GPA_3_0:
-    MOV AX, 300          ; GPA = 3.00
-    RET
-
-GPA_2_7:
-    MOV AX, 270          ; GPA = 2.70
-    RET
-
-GPA_2_3:
-    MOV AX, 230          ; GPA = 2.30
-    RET
-
-GPA_2_0:
-    MOV AX, 200          ; GPA = 2.00
-    RET
-
-GPA_1_7:
-    MOV AX, 170          ; GPA = 1.70
-    RET
-
-GPA_1_3:
-    MOV AX, 130          ; GPA = 1.30
-    RET
-
-GPA_1_0:
-    MOV AX, 100          ; GPA = 1.00
-    RET
-
-GPA_0_7:
-    MOV AX, 70           ; GPA = 0.70
-    RET
-
-GPA_0_0:
-    MOV AX, 0            ; GPA = 0.00
-    RET
-
-MARK_TO_GPA ENDP
-
+; Placeholder for Mim's procedures
 
 ;------------------------x---------------------------------;
 END MAIN

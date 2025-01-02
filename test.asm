@@ -1,4 +1,4 @@
-.MODEL SMALL
+                    .MODEL SMALL
 ;----------------------------------------------------------;
 ;DEFINE MACROS HERE 
 ;------;
@@ -62,7 +62,7 @@ NumLength MACRO num
     pop ax
 ENDM
 
-PrintRow MACRO id, mrk, grd
+PrintRow MACRO id, mrk, grd, cgp
     push ax
     push dx
     push cx
@@ -113,8 +113,9 @@ PrintRow MACRO id, mrk, grd
     call PrintSpaces
     
     ; Step 1: Calculate the integer part
-    call MARK_TO_GPA          ; Load CGPA value (375 for example)
+    mov ax, cgp               ; Load CGPA value (375 for example)
     mov bl, 100               ; Divisor
+    int 3h
     div bl                    ; AX / BX -> Quotient in AL (integer part), Remainder in AH
     
     add al, '0'               ; Convert integer part to ASCII
@@ -163,7 +164,7 @@ max_students db 50          ; Maximum number of students
 student_ids db 50 dup(0)    ; Array for Student IDs
 marks db 50 dup(0)          ; Array for Marks
 grades db 50 dup('?')       ; Array for Grades
-
+cgpa dw 50 dup(0)           ; Array for cgpa
 ;------------------------x---------------------------------;
 
 
@@ -203,7 +204,7 @@ student_count db ?         ; Actual number of students (input by the user)
 tempID db ?
 tempMarks db ?
 tempGrade db ?
-cgp db ?
+tempCGPA dw ?                     ; Changed to word
 ;------------------------x---------------------------------;
 
 
@@ -253,7 +254,7 @@ MAIN PROC
     sub al, 30h
     add cl, al           ; Combine digits
     mov student_count, cl ; Store student count
-;    jmp Adrita
+    jmp Adrita
     ; Validate student_count
     mov al, student_count ; Load student_count into AL
     cmp al, max_students  ; Compare AL (student_count) with max_students
@@ -384,27 +385,55 @@ assign_grades_and_cgpa:
     CMP AL, 50
     JGE grade_D
     MOV grades[SI], 'F'          ; If below 50, grade is 'F'
+    MOV cgpa[SI+SI], 0   ; CGPA = 0.0
     JMP next_student
 
 grade_A:
     MOV grades[SI], 'A'
+    MOV cgpa[SI+SI], 400d ; CGPA = 4.00 (scaled by 100)
     JMP next_student
 
 grade_B:
     MOV grades[SI], 'B'
+    MOV cgpa[SI+SI], 300d ; CGPA = 3.00
     JMP next_student
 
 grade_C:
     MOV grades[SI], 'C'
+    MOV cgpa[SI+SI], 200d ; CGPA = 2.00
     JMP next_student
 
 grade_D:
     MOV grades[SI], 'D'
+    MOV cgpa[SI+SI], 100d ; CGPA = 1.00
 
 next_student:
     INC SI
     LOOP assign_grades_and_cgpa
     ;call DisplayGrades
+;-------------------------------------------------------------------------------------------    
+;    push cx
+;    push ax
+;    push dx
+;    mov ch, 0
+;    mov cl, student_count   ; Use student_count to determine loop count
+;    mov si, 0               ; Start index for CGPA array
+;    print_cgpa_loop:
+;    mov ax, cgpa[si]        ; Load CGPA value (word)
+;    mov rem, ax             ; Store in rem for digit processing
+;    NumLength ax            ; Calculate number length
+;    call PrintDigits        ; Print the digits
+;
+;    lea dx, newline         ; Add newline after each CGPA
+;    mov ah, 9
+;    int 21h
+;
+;    add si, 2               ; Increment index for word-sized array
+;    loop print_cgpa_loop
+;    pop dx
+;    pop ax
+;    pop cx
+;----------------------------------------------------------------------------------------------
 
     ; Bubble Sort Algorithm to sort by marks
     MOV CH, 0
@@ -460,6 +489,14 @@ swap_elements:
     MOV AL, tempGrade
     MOV grades[DI], AL
 
+    ; Swap CGPA
+    MOV AX, cgpa[SI+SI]
+    MOV tempCGPA, AX
+    MOV AX, cgpa[DI+DI]
+    MOV cgpa[SI+SI], AX
+    MOV AX, tempCGPA
+    MOV cgpa[DI+DI], AX
+
     ; Return to inner loop
     JMP next_iteration    
 
@@ -467,9 +504,31 @@ Adrita:
     ;------;
     ;ADRITA;
     ;------;
-
+;-------------------------------------------------------------------------------------------    
+;    push cx
+;    push ax
+;    push dx
+;    mov ch, 0
+;    mov cl, student_count   ; Use student_count to determine loop count
+;    mov si, 0               ; Start index for CGPA array
+;    print_cgpa:
+;    mov ax, cgpa[si]        ; Load CGPA value (word)
+;    mov rem, ax             ; Store in rem for digit processing
+;    NumLength ax            ; Calculate number length
+;    call PrintDigits        ; Print the digits
+;
+;    lea dx, newline         ; Add newline after each CGPA
+;    mov ah, 9
+;    int 21h
+;
+;    add si, 2               ; Increment index for word-sized array
+;    loop print_cgpa
+;    pop dx
+;    pop ax
+;    pop cx
+;----------------------------------------------------------------------------------------------
     ; Initialize student data
-    ;call InitializeData
+    call InitializeData
 
     ; Display the grades and summary
     call DisplayGrades
@@ -501,19 +560,29 @@ MAIN ENDP
 ; Initialize data (dummy data for testing)
 InitializeData PROC
     push ax
+    push bx
     push si
     xor si, si             ; Array index
     mov ch, 0h
     mov cl, student_count  ; Number of students
+    mov bx, 356d           ; Initialize BX with the starting CGPA value (375d)
     
     InitLoop:
         mov ax, si
         mov student_ids[si], al ; Assign Student ID as the index
         mov marks[si], al       ; Assign marks (example values)
         mov grades[si], 'A'     ; Assign grade (example values)
+        ; Initialize CGPA array
+        mov cgpa[si+si], bx      ; Assign the full word (BX) to cgpa array
+        inc bx                  ; Increment BX for the next CGPA value
+        push bx
+        mov bx, cgpa[si+si]
+        int 3h
+        pop bx
         inc si
         loop InitLoop
     pop si    
+    pop bx
     pop ax
     ret
 InitializeData ENDP
@@ -598,7 +667,7 @@ DisplayGrades PROC
     ; Iterate through student data
     DisplayLoop:
         PrintString separator
-        PrintRow student_ids[si], marks[si], grades[si]
+        PrintRow student_ids[si], marks[si], grades[si], cgpa[si+si]
         inc si
         loop DisplayLoop
         
@@ -677,94 +746,7 @@ PrintDigits ENDP
 ;---;
 ;MIM;
 ;---;
-MARK_TO_GPA PROC
-    ; Convert marks in AX to GPA on a 4.0 scale
-    CMP AX, 90
-    JGE GPA_4_0          ; Marks >= 90, GPA = 4.0
-
-    CMP AX, 85
-    JGE GPA_3_7          ; 85 <= Marks < 90, GPA = 3.7
-
-    CMP AX, 80
-    JGE GPA_3_3          ; 80 <= Marks < 85, GPA = 3.3
-
-    CMP AX, 75
-    JGE GPA_3_0          ; 75 <= Marks < 80, GPA = 3.0
-
-    CMP AX, 70
-    JGE GPA_2_7          ; 70 <= Marks < 75, GPA = 2.7
-
-    CMP AX, 65
-    JGE GPA_2_3          ; 65 <= Marks < 70, GPA = 2.3
-
-    CMP AX, 60
-    JGE GPA_2_0          ; 60 <= Marks < 65, GPA = 2.0
-
-    CMP AX, 57
-    JGE GPA_1_7          ; 57 <= Marks < 60, GPA = 1.7
-
-    CMP AX, 55
-    JGE GPA_1_3          ; 55 <= Marks < 57, GPA = 1.3
-
-    CMP AX, 52
-    JGE GPA_1_0          ; 52 <= Marks < 55, GPA = 1.0
-
-    CMP AX, 50
-    JGE GPA_0_7          ; 50 <= Marks < 52, GPA = 0.7
-
-    JMP GPA_0_0          ; Marks < 50, GPA = 0.0
-
-    ; GPA Labels and Assignments
-GPA_4_0:
-    MOV AX, 400          ; GPA = 4.00
-    RET
-
-GPA_3_7:
-    MOV AX, 370          ; GPA = 3.70
-    RET
-
-GPA_3_3:
-    MOV AX, 330          ; GPA = 3.30
-    RET
-
-GPA_3_0:
-    MOV AX, 300          ; GPA = 3.00
-    RET
-
-GPA_2_7:
-    MOV AX, 270          ; GPA = 2.70
-    RET
-
-GPA_2_3:
-    MOV AX, 230          ; GPA = 2.30
-    RET
-
-GPA_2_0:
-    MOV AX, 200          ; GPA = 2.00
-    RET
-
-GPA_1_7:
-    MOV AX, 170          ; GPA = 1.70
-    RET
-
-GPA_1_3:
-    MOV AX, 130          ; GPA = 1.30
-    RET
-
-GPA_1_0:
-    MOV AX, 100          ; GPA = 1.00
-    RET
-
-GPA_0_7:
-    MOV AX, 70           ; GPA = 0.70
-    RET
-
-GPA_0_0:
-    MOV AX, 0            ; GPA = 0.00
-    RET
-
-MARK_TO_GPA ENDP
-
+; Placeholder for Mim's procedures
 
 ;------------------------x---------------------------------;
 END MAIN

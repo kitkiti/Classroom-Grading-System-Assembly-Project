@@ -292,25 +292,15 @@ MAIN PROC
     ; Store the ID
     mov student_ids[si], bl
     
-    lea dx, newline
-    mov ah, 9
-    int 21h
-    
-    lea dx, indent
-    mov ah, 9
-    int 21h
+    PrintString newline
+    PrintString indent
     
     add si, 1            ; Move to next ID slot
     loop input_ids
     
     ; Input Marks
-    lea dx, newline
-    mov ah, 9
-    int 21h
-    
-    lea dx, marks_inp
-    mov ah, 9
-    int 21h
+    PrintString newline
+    PrintString marks_inp
     
     mov si, 0            ; Reset index for marks
     mov ch, 0

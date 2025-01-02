@@ -16,14 +16,14 @@ grades db 50 dup('?')         ; Array for Grades
 cgpa dw 50 dup(0)             ; Array for CGPA
 max_students db 50
 student_count db ?
-
+msg db "Enter number of students (at max. 50): $"
+msg1 db "Invalid input.$"
 .CODE
 MAIN PROC
 
 ; Initialize DS
 MOV AX, @DATA
 MOV DS, AX
-
     ; Display gap1
     lea dx, gap1
     mov ah, 9
@@ -39,27 +39,28 @@ MOV DS, AX
     mov ah, 9
     int 21h
     
+
     ; Prompt user for number of students
+
+    lea dx, msg
+    mov ah, 9
+    int 21h
+    
     mov cx, 0            ; Clear CX
     mov ah, 1
     int 21h
+    call VALIDATE_DIGIT
     sub al, 30h          ; Convert ASCII to numeric
     mul cx
     mov cl, al           ; Read tens place
     mov ah, 1
     int 21h
+    call VALIDATE_DIGIT
     sub al, 30h
     add cl, al           ; Combine digits
     mov student_count, cl ; Store student count
     
-    ; Validate student_count
-    mov al, student_count ; Load student_count into AL
-    cmp al, max_students  ; Compare AL (student_count) with max_students
-    jle valid_count       ; Jump if less than or equal to max_students
-    mov al, max_students  ; Cap student_count to max_students
-    mov student_count, al ; Store capped value back
-    
-    valid_count:
+      
     
     ; Initialize variables
     mov si, 0            ; Index for IDs and marks
@@ -83,6 +84,7 @@ MOV DS, AX
     ; Read tens place
     mov ah, 1
     int 21h
+    call VALIDATE_DIGIT
     sub al, 30h          ; Convert ASCII to numeric
     mul bl
     mov bx, ax
@@ -90,6 +92,7 @@ MOV DS, AX
     ; Read units place
     mov ah, 1
     int 21h
+    call VALIDATE_DIGIT
     sub al, 30h
     add bx, ax
     
@@ -127,6 +130,7 @@ MOV DS, AX
     ; Read hundreds place
     mov ah, 1
     int 21h
+    call VALIDATE_DIGIT
     sub al, 30h          ; Convert ASCII to numeric
     mul bl
     mov dx, ax
@@ -135,6 +139,7 @@ MOV DS, AX
     mov bl, 10
     mov ah, 1
     int 21h
+    call VALIDATE_DIGIT
     sub al, 30h
     mul bl
     add dx, ax
@@ -142,9 +147,11 @@ MOV DS, AX
     ; Read units place
     mov ah, 1
     int 21h
+    call VALIDATE_DIGIT
     sub al, 30h
     add dx, ax
-    
+    mov dh, 0
+    call VALIDATE_MARKS
     ; Store the Marks
     mov marks[si], dl
     
@@ -172,4 +179,67 @@ MOV AX, 4C00H
 INT 21H
 
 MAIN ENDP
+
+VALIDATE_MARKS PROC
+    PUSH AX            ; Save AX
+    PUSH BX            ; Save BX
+    PUSH DX            ; Save DX
+
+    ; Check if DX < 0
+    CMP DX, 0          ; Compare DX with 0
+    JL INVALID_MARKS   ; Jump if DX < 0
+
+    ; Check if DX > 100
+    MOV AX, 100d        ; Load 100 into AX
+    CMP DX, AX         ; Compare DX with 100
+    ;int 3h
+    JG INVALID_MARKS   ; Jump if DX > 100
+
+    POP DX             ; Restore DX
+    POP BX             ; Restore BX
+    POP AX             ; Restore AX
+    RET                ; Return if valid marks
+
+INVALID_MARKS:
+    lea dx, newline     ; Display newline
+    mov ah, 9
+    int 21h
+
+    LEA DX, msg1        ; Load address of error message
+    MOV AH, 9           ; Display string function
+    INT 21H             ; Call DOS interrupt
+
+    MOV AX, 4C00H       ; DOS terminate program
+    INT 21H             ; Terminate the program
+
+VALIDATE_MARKS ENDP
+
+
+VALIDATE_DIGIT PROC
+    PUSH AX            ; Save AX
+    PUSH DX            ; Save DX
+
+    CMP AL, '0'        ; Check if AL is less than '0'
+    JL INVALID_INPUT   ; Jump to terminate if AL < '0'
+    CMP AL, '9'        ; Check if AL is greater than '9'
+    JG INVALID_INPUT   ; Jump to terminate if AL > '9'
+
+    POP DX             ; Restore DX
+    POP AX             ; Restore AX
+    RET                ; Return if valid input
+
+INVALID_INPUT:
+    lea dx, newline
+    mov ah, 9
+    int 21h    
+    LEA DX, msg1        ; Load address of error message
+    MOV AH, 9          ; Display string function
+    INT 21H            ; Call DOS interrupt
+    MOV AX, 4C00H      ; DOS terminate program
+    INT 21H            ; Terminate the program
+
+VALIDATE_DIGIT ENDP
+
+
 END MAIN
+

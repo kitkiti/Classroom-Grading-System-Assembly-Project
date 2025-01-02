@@ -35,10 +35,10 @@ NumLength MACRO num
     push ax
     mov ax, num
     
-    mov temp, 1           ; Default to 1 digit
-    mov bx, 1d           ; Default divisor for 1 digit
-    cmp ax, 9            ; Is REM <= 9?
-    jle NumLengthEnd      ; If yes, done
+    mov temp, 1           ; 1 digit
+    mov bx, 1d         
+    cmp ax, 9           
+    jle NumLengthEnd      
 
     mov temp, 2           ; 2 digits
     mov bx, 10d
@@ -69,68 +69,71 @@ PrintRow MACRO id, mrk, grd
     push bx
     push si
 
-    ; Print the left border
+    ; left border
     PrintString column_separator
 
-    ; Print Student ID (padded to 19 characters)
-
+    ; Student ID column (padded to 19 characters)
     mov dh, 0
     mov dl, id
-    NumLength dx
+    NumLength dx  ;sets bx (divisor) and temp (numlength)
     ;left padding
-    mov cx, 19          ; Total column width for Student ID
-    sub cl, temp        ; Subtract digit count in TEMP
-    call PrintSpaces    ; Print left padding depending on cx
+    mov cx, 19          
+    sub cl, temp        
+    call PrintSpaces   
     mov al, id
     mov ah, 0
     mov rem, ax
     call PrintDigits
 
-    ; Print Marks (padded to 19 characters)
+    ; Marks column (padded to 19 chars)
     PrintString column_separator
     mov dh, 0
     mov dl, mrk
-    NumLength dx
+    NumLength dx  
     ;left padding
-    mov cx, 19          ; Total column width for Student ID
-    sub cl, temp        ; Subtract digit count in TEMP
-    call PrintSpaces    ; Print left padding depending on cx
+    mov cx, 19         
+    sub cl, temp        
+    call PrintSpaces
+    
     mov al, mrk
     mov ah, 0
     mov rem, ax
     call PrintDigits
 
-    ; Print Grade (padded to 19 characters)
+    ; Grades column (padded to 19 chars)
     PrintString column_separator
+    ;left padding
     mov cx, 18
     call PrintSpaces
+    
     PrintChar grd
     
     
-    ; Print CGPA (padded to 18 characters)
+    ; CGPA column (padded to 18 chars)
     PrintString column_separator
+    ;left padding
     mov cx, 14
     call PrintSpaces
     
-    ; Step 1: Calculate the integer part
-    call MARK_TO_GPA          ; Load CGPA value (375 for example)
-    mov bl, 100               ; Divisor
-    div bl                    ; AX / BX -> Quotient in AL (integer part), Remainder in AH
+    ; cgpa integer part
+    call MARK_TO_GPA  ; takes marks from AX and stores CGPA in AX
+    mov bl, 100             
+    div bl                    
     
-    add al, '0'               ; Convert integer part to ASCII
-    PrintChar al              ; Print integer part
-    PrintChar '.'             ; Print the decimal point
+    add al, 30h      ; Convert to ASCII
+    PrintChar al              
+    PrintChar '.'             
     
-    ; Step 2: Print the fractional part (remainder)
-    mov dl, ah                ; Move remainder (AH) to DL (8-bit to 8-bit is valid)
-    mov dh, 0                 ; Clear AH to prepare for division
+    ; cgpa fractional part (remainder)
+    mov dl, ah                
+    mov dh, 0
     mov bx, 10d
     mov rem, dx 
     call PrintDigits
     
         
     
-    ; Print right border
+    ; right border
     PrintString column_separator
     pop si
     pop bx
@@ -158,7 +161,7 @@ ENDM
 ; Variables, strings and arrays
 ;----------------------------------------------------------;
 ;INITIALIZE ARRAYS HERE
-max_students db 50          ; Maximum number of students
+max_students db 50d          ; Maximum number of students
 
 student_ids db 50 dup(0)    ; Array for Student IDs
 marks db 50 dup(0)          ; Array for Marks
@@ -174,7 +177,7 @@ header db "+-------------------+-------------------+-------------------+--------
 separator db "+-------------------+-------------------+-------------------+------------------+", 0Dh, 0Ah, "$"
 footer db "+-------------------+-------------------+-------------------+------------------+", 0Dh, 0Ah, "$"
  
-average_label db "Class Average: $"
+average_label db "Class Average Marks: $"
 num_students_label db "Total Students: $"
 column_separator db "|$"
 
@@ -188,7 +191,10 @@ indent2 db "                       $"
 marks_inp db "Enter Student's marks: $"      
 err db " (Please provide valid marks) $"
 
-msg1 db "After sorting by marks: ", 0Dh, 0Ah, "$"
+srtrdmsg db "After sorting by marks: ", 0Dh, 0Ah, "$"
+
+msg db "Enter number of students (at max. 50): $"
+msg1 db "Invalid input.$"
 ;------------------------x---------------------------------; 
 
 
@@ -196,7 +202,7 @@ msg1 db "After sorting by marks: ", 0Dh, 0Ah, "$"
 ;----------------------------------------------------------;
 ;INITIALIZE VARIABLES HERE
 temp db ?                  ; Temporary variable for calculations
-rem dw ?
+rem dw ?                   ; imortant for PrintDigits
 student_count db ?         ; Actual number of students (input by the user)
 
 
@@ -226,56 +232,42 @@ MAIN PROC
     ;------;
     ;DIPITA;
     ;------;
-    ; Display gap1
-    lea dx, gap1
-    mov ah, 9
-    int 21h
+    PrintString gap1
     
     ; Display welcome message
-    lea dx, welcome
-    mov ah, 9
-    int 21h
+    PrintString welcome
     
     ; Add a newline
-    lea dx, newline
-    mov ah, 9
-    int 21h
+    PrintString newline
     
-    ; Prompt user for number of students
-    mov cx, 0            ; Clear CX
+
+    ; Prompt user to enter student count
+    PrintString msg
+    
+    mov cx, 0            
     mov ah, 1
     int 21h
-    sub al, 30h          ; Convert ASCII to numeric
+    call VALIDATE_DIGIT
+    sub al, 30h          
     mul cx
-    mov cl, al           ; Read tens place
+    mov cl, al           ; store tens place
     mov ah, 1
     int 21h
+    call VALIDATE_DIGIT
     sub al, 30h
-    add cl, al           ; Combine digits
-    mov student_count, cl ; Store student count
-;    jmp Adrita
-    ; Validate student_count
-    mov al, student_count ; Load student_count into AL
-    cmp al, max_students  ; Compare AL (student_count) with max_students
-    jle valid_count       ; Jump if less than or equal to max_students
-    mov al, max_students  ; Cap student_count to max_students
-    mov student_count, al ; Store capped value back
+    add cl, al           ; combine  digits
+    mov student_count, cl 
     
-    valid_count:
+      
     
     ; Initialize variables
-    mov si, 0            ; Index for IDs and marks
+    mov si, 0            
     mov ch, 0
-    mov cl, student_count ; Loop for number of students
+    mov cl, student_count 
     
     ; Input Student IDs
-    lea dx, newline
-    mov ah, 9
-    int 21h
-    
-    lea dx, id_inp
-    mov ah, 9
-    int 21h
+    PrintString newline
+    PrintString id_inp
     
     input_ids:
     mov ax, 0            ; Clear AX (to hold final result)
@@ -285,13 +277,15 @@ MAIN PROC
     ; Read tens place
     mov ah, 1
     int 21h
-    sub al, 30h          ; Convert ASCII to numeric
+    call VALIDATE_DIGIT
+    sub al, 30h          
     mul bl
     mov bx, ax
     
     ; Read units place
     mov ah, 1
     int 21h
+    call VALIDATE_DIGIT
     sub al, 30h
     add bx, ax
     
@@ -320,7 +314,7 @@ MAIN PROC
     
     mov si, 0            ; Reset index for marks
     mov ch, 0
-    mov cl, student_count ; Loop for number of students
+    mov cl, student_count ; Loop variable
     
     input_marks:
     mov ax, 0            ; Clear AX (to hold final result)
@@ -329,7 +323,8 @@ MAIN PROC
     ; Read hundreds place
     mov ah, 1
     int 21h
-    sub al, 30h          ; Convert ASCII to numeric
+    call VALIDATE_DIGIT
+    sub al, 30h          
     mul bl
     mov dx, ax
     
@@ -337,6 +332,7 @@ MAIN PROC
     mov bl, 10
     mov ah, 1
     int 21h
+    call VALIDATE_DIGIT
     sub al, 30h
     mul bl
     add dx, ax
@@ -344,27 +340,21 @@ MAIN PROC
     ; Read units place
     mov ah, 1
     int 21h
+    call VALIDATE_DIGIT
     sub al, 30h
     add dx, ax
-    
+    mov dh, 0
+    call VALIDATE_MARKS
     ; Store the Marks
     mov marks[si], dl
     
-    lea dx, newline
-    mov ah, 9
-    int 21h
-    
-    lea dx, indent2
-    mov ah, 9
-    int 21h
+    PrintString newline
+    PrintString indent2
     
     inc si
     loop input_marks
     
-    ; Add a newline before displaying grades
-    lea dx, newline
-    mov ah, 9
-    int 21h
+    PrintString newline
     
     ;---;
     ;MIM;
@@ -404,7 +394,11 @@ grade_D:
 next_student:
     INC SI
     LOOP assign_grades_and_cgpa
-    ;call DisplayGrades
+    
+;---------shows unsorted grades----------;    
+    call DisplayGrades
+;----------------------------------------;
+
 
     ; Bubble Sort Algorithm to sort by marks
     MOV CH, 0
@@ -432,7 +426,7 @@ next_iteration:
     JNZ outer_loop
 
 exit_program:
-    PrintString msg1
+    PrintString srtrdmsg
     jmp Adrita
 
 swap_elements:
@@ -481,7 +475,7 @@ Adrita:
     
     
     
-        
+    exit:    
     ; Exit to DOS
     MOV AX, 4C00H
     INT 21H
@@ -497,7 +491,6 @@ MAIN ENDP
 ;------;
 ;GLOBAL;
 ;------;
-; Initialize data (dummy data for testing)
 ; Initialize data (dummy data for testing)
 InitializeData PROC
     push ax
@@ -526,15 +519,16 @@ InitializeData ENDP
 ;------;
 ; Procedure to calculate average
 CalcAverage PROC
-    push ax               ; Save registers
+    push ax              
     push bx
     push cx
     push dx
     push si
-
-    mov ax, 0             ; Initialize sum (AX = 0)
+    
+    ; initializing
+    mov ax, 0             
     mov ch, 0
-    mov cl, student_count ; Set loop counter (number of students)
+    mov cl, student_count ;loop counter 
     mov si, offset marks  ; Point SI to the start of the marks array
 
     SumLoop:
@@ -544,31 +538,30 @@ CalcAverage PROC
         inc si             ; Move to the next mark (each mark is 2 bytes)
         loop SumLoop          ; Repeat until all students are processed
 
-    ; AX now contains the total sum of the marks
+    ; AX has sum
     mov dx, 0
     mov bh, 0
     mov bl, student_count
     div bx
-    ;AX now contains the quotient i.e. the decimal values
+    ;AX now has quotient 
     mov rem, ax     
-    NumLength ax       ;sets bx and temp
-    call PrintDigits      ; Print the total sum
+    NumLength ax       ;sets bx
+    call PrintDigits   ;total sum
     PrintChar '.'
     
-    ; Calculate and print the fractional part
-    mov ax, dx            ; Load the remainder into AX
+    ;fractional part (upto two decimal places)
+    mov ax, dx       
     mov bx, 100           ; Multiply remainder by 100 to get fractional part
     mul bx
     mov bh, 0
-    mov bl, student_count ; Divide by student count
+    mov bl, student_count 
     div bx                ; AX = fractional part (two digits), DX = remainder
 
-    ; Print the fractional part
-    mov rem, ax           ; Store the fractional part in `rem`
-    NumLength ax          ; Calculate the number of digits
-    call PrintDigits      ; Print the fractional part
+    mov rem, ax           
+    NumLength ax          
+    call PrintDigits      
 
-    ; Restore registers
+
     pop si
     pop dx
     pop cx
@@ -578,34 +571,34 @@ CalcAverage PROC
 CalcAverage ENDP
 
 
-; Procedure to display grades
+
 DisplayGrades PROC
     push ax
     push dx
     push si
     push cx
 
-    ; Display header and separator
+    
     PrintString header
  
 
-    ; Initialize array index and student count
-    xor si, si                ; Array index
+    ; Initializing
+    mov si, 0h                
     mov ch, 0h
-    mov cl, student_count     ; Number of students
+    mov cl, student_count     
     
 
-    ; Iterate through student data
+    ; Printing Table Rows
     DisplayLoop:
         PrintString separator
         PrintRow student_ids[si], marks[si], grades[si]
         inc si
         loop DisplayLoop
         
-    ; Display the footer
+    
     PrintString footer
 
-    ; Restore registers and return
+    
     pop cx
     pop si
     pop dx
@@ -619,7 +612,7 @@ PrintSpaces PROC
     push ax
     push dx
 
-    mov dl, ' '        ; Space character
+    mov dl, ' '        
     SpaceLoop:
         mov ah, 2
         int 21h
@@ -632,7 +625,7 @@ PrintSpaces ENDP
 
 
 PrintDigits PROC
-    ;store required bx beforehand
+    ;!!IMPORTANT!! store required bx and rem beforehand !!IMPORTANT!!
     push ax
     push dx
     push bx
@@ -672,49 +665,96 @@ PrintDigits ENDP
 ;------;
 ;DIPITA;
 ;------;
-; Placeholder for Dipita's procedures
+VALIDATE_MARKS PROC
+    PUSH AX    
+    PUSH BX            
+    PUSH DX            
+
+
+    CMP DX, 0          
+    JL INVALID_MARKS   ; Jump if DX < 0
+
+
+    MOV AX, 100d        
+    CMP DX, AX         
+    ;int 3h
+    JG INVALID_MARKS   ; Jump if DX > 100
+
+    POP DX             
+    POP BX             
+    POP AX             
+    RET                ; Return if valid marks
+
+INVALID_MARKS:
+    PrintString newline
+    PrintString msg1              
+    MOV AX, 4C00H       
+    INT 21H             ; Terminate the program
+
+VALIDATE_MARKS ENDP
+
+
+VALIDATE_DIGIT PROC
+    PUSH AX         
+    PUSH DX         
+
+    CMP AL, '0'       
+    JL INVALID_INPUT   ; Jump to terminate if AL < '0'
+    CMP AL, '9'       
+    JG INVALID_INPUT   ; Jump to terminate if AL > '9'
+
+    POP DX           
+    POP AX           
+    RET                ; Return if valid input
+
+INVALID_INPUT:
+    PrintString newline
+    PrintString msg1            
+    MOV AX, 4C00H      
+    INT 21H            ; Terminate the program
+            
+
+VALIDATE_DIGIT ENDP
 
 ;---;
 ;MIM;
 ;---;
 MARK_TO_GPA PROC
-    ; Convert marks in AX to GPA on a 4.0 scale
     CMP AX, 90
-    JGE GPA_4_0          ; Marks >= 90, GPA = 4.0
+    JGE GPA_4_0          ; Marks >= 90
 
     CMP AX, 85
-    JGE GPA_3_7          ; 85 <= Marks < 90, GPA = 3.7
+    JGE GPA_3_7          ; 85 <= Marks < 90
 
     CMP AX, 80
-    JGE GPA_3_3          ; 80 <= Marks < 85, GPA = 3.3
+    JGE GPA_3_3          ; 80 <= Marks < 85
 
     CMP AX, 75
-    JGE GPA_3_0          ; 75 <= Marks < 80, GPA = 3.0
+    JGE GPA_3_0          ; 75 <= Marks < 80
 
     CMP AX, 70
-    JGE GPA_2_7          ; 70 <= Marks < 75, GPA = 2.7
+    JGE GPA_2_7          ; 70 <= Marks < 75
 
     CMP AX, 65
-    JGE GPA_2_3          ; 65 <= Marks < 70, GPA = 2.3
+    JGE GPA_2_3          ; 65 <= Marks < 70
 
     CMP AX, 60
-    JGE GPA_2_0          ; 60 <= Marks < 65, GPA = 2.0
+    JGE GPA_2_0          ; 60 <= Marks < 65
 
     CMP AX, 57
-    JGE GPA_1_7          ; 57 <= Marks < 60, GPA = 1.7
+    JGE GPA_1_7          ; 57 <= Marks < 60
 
     CMP AX, 55
-    JGE GPA_1_3          ; 55 <= Marks < 57, GPA = 1.3
+    JGE GPA_1_3          ; 55 <= Marks < 57
 
     CMP AX, 52
-    JGE GPA_1_0          ; 52 <= Marks < 55, GPA = 1.0
+    JGE GPA_1_0          ; 52 <= Marks < 55
 
     CMP AX, 50
-    JGE GPA_0_7          ; 50 <= Marks < 52, GPA = 0.7
+    JGE GPA_0_7          ; 50 <= Marks < 52
 
-    JMP GPA_0_0          ; Marks < 50, GPA = 0.0
+    JMP GPA_0_0          ; Marks < 50
 
-    ; GPA Labels and Assignments
 GPA_4_0:
     MOV AX, 400          ; GPA = 4.00
     RET

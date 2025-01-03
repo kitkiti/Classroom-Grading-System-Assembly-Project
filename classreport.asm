@@ -323,7 +323,8 @@ MAIN PROC
     mov ah, 1
     int 21h
     call VALIDATE_DIGIT
-    sub al, 30h          
+    sub al, 30h
+    mov ah, 0          
     mul bl
     mov dx, ax
    
@@ -333,6 +334,7 @@ MAIN PROC
     int 21h
     call VALIDATE_DIGIT
     sub al, 30h
+    mov ah, 0
     mul bl
     add dx, ax
    
@@ -341,9 +343,10 @@ MAIN PROC
     int 21h
     call VALIDATE_DIGIT
     sub al, 30h
+    mov ah, 0
     add dx, ax
-    mov dh, 0
     call VALIDATE_MARKS
+    mov dh, 0
     ; Store the Marks
     mov marks[si], dl
    
@@ -672,6 +675,10 @@ VALIDATE_MARKS PROC
 
     CMP DX, 0          
     JL INVALID_MARKS   ; Jump if DX < 0
+    
+    MOV AX, 100d        
+    CMP DX, AX        
+    JG INVALID_MARKS   ; Jump if DX > 100
 
     POP DX            
     POP BX            

@@ -673,12 +673,6 @@ VALIDATE_MARKS PROC
     CMP DX, 0          
     JL INVALID_MARKS   ; Jump if DX < 0
 
-
-    MOV AX, 100d        
-    CMP DX, AX        
-    ;int 3h
-    JG INVALID_MARKS   ; Jump if DX > 100
-
     POP DX            
     POP BX            
     POP AX            

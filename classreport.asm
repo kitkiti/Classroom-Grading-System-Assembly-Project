@@ -1,6 +1,6 @@
 .MODEL SMALL
 ;----------------------------------------------------------;
-;DEFINE MACROS HERE 
+;DEFINE MACROS HERE
 ;------;
 ;GLOBAL;
 ;------;
@@ -34,10 +34,10 @@ NumLength MACRO num
     local NumLengthEnd
     push ax
     mov ax, num
-    
+   
     mov temp, 1           ; 1 digit
-    mov bx, 1d         
-    cmp ax, 9           
+    mov bx, 1d        
+    cmp ax, 9          
     jle NumLengthEnd      
 
     mov temp, 2           ; 2 digits
@@ -79,7 +79,7 @@ PrintRow MACRO id, mrk, grd
     ;left padding
     mov cx, 19          
     sub cl, temp        
-    call PrintSpaces   
+    call PrintSpaces  
     mov al, id
     mov ah, 0
     mov rem, ax
@@ -91,10 +91,10 @@ PrintRow MACRO id, mrk, grd
     mov dl, mrk
     NumLength dx  
     ;left padding
-    mov cx, 19         
+    mov cx, 19        
     sub cl, temp        
     call PrintSpaces
-    
+   
     mov al, mrk
     mov ah, 0
     mov rem, ax
@@ -105,34 +105,34 @@ PrintRow MACRO id, mrk, grd
     ;left padding
     mov cx, 18
     call PrintSpaces
-    
+   
     PrintChar grd
-    
-    
+   
+   
     ; CGPA column (padded to 18 chars)
     PrintString column_separator
     ;left padding
     mov cx, 14
     call PrintSpaces
-    
+   
     ; cgpa integer part
     call MARK_TO_GPA  ; takes marks from AX and stores CGPA in AX
-    mov bl, 100             
+    mov bl, 100            
     div bl                    
-    
+   
     add al, 30h      ; Convert to ASCII
     PrintChar al              
-    PrintChar '.'             
-    
+    PrintChar '.'            
+   
     ; cgpa fractional part (remainder)
     mov dl, ah                
     mov dh, 0
     mov bx, 10d
-    mov rem, dx 
+    mov rem, dx
     call PrintDigits
-    
-        
-    
+   
+       
+   
     ; right border
     PrintString column_separator
     pop si
@@ -194,8 +194,9 @@ err db " (Please provide valid marks) $"
 srtrdmsg db "After sorting by marks: ", 0Dh, 0Ah, "$"
 
 msg db "Enter number of students (at max. 50): $"
-msg1 db "Invalid input.$"
-;------------------------x---------------------------------; 
+msg1 db "Invalid input.$"   
+msg2 db "Maximum student count exceeded.$"
+;------------------------x---------------------------------;
 
 
 
@@ -233,47 +234,55 @@ MAIN PROC
     ;DIPITA;
     ;------;
     PrintString gap1
-    
-    ; Display welcome message
     PrintString welcome
-    
-    ; Add a newline
     PrintString newline
-    
+   
 
     ; Prompt user to enter student count
     PrintString msg
-    
+   
     mov cx, 0            
     mov ah, 1
     int 21h
     call VALIDATE_DIGIT
-    sub al, 30h          
-    mul cx
+    sub al, 30h  
+    mov cl,10      
+    mul cl
     mov cl, al           ; store tens place
     mov ah, 1
     int 21h
     call VALIDATE_DIGIT
     sub al, 30h
-    add cl, al           ; combine  digits
-    mov student_count, cl 
-    
-      
-    
+    add cl, al           ; combine  digits  
+   
+    cmp cl,50            ; checking exceed student
+    jg exceed_student
+    jle proceed
+   
+    exceed_student:
+    PrintString newline
+    PrintString msg2
+    jmp exit
+   
+    proceed:
+    mov student_count, cl
+   
+     
+   
     ; Initialize variables
     mov si, 0            
     mov ch, 0
-    mov cl, student_count 
-    
+    mov cl, student_count
+   
     ; Input Student IDs
     PrintString newline
     PrintString id_inp
-    
+   
     input_ids:
     mov ax, 0            ; Clear AX (to hold final result)
     mov bl, 10
     mov bh, 0            ; Multiplier for tens place
-    
+   
     ; Read tens place
     mov ah, 1
     int 21h
@@ -281,35 +290,35 @@ MAIN PROC
     sub al, 30h          
     mul bl
     mov bx, ax
-    
+   
     ; Read units place
     mov ah, 1
     int 21h
     call VALIDATE_DIGIT
     sub al, 30h
     add bx, ax
-    
+   
     ; Store the ID
     mov student_ids[si], bl
-    
+   
     PrintString newline
     PrintString indent
-    
+   
     add si, 1            ; Move to next ID slot
     loop input_ids
-    
+   
     ; Input Marks
     PrintString newline
     PrintString marks_inp
-    
+   
     mov si, 0            ; Reset index for marks
     mov ch, 0
     mov cl, student_count ; Loop variable
-    
+   
     input_marks:
     mov ax, 0            ; Clear AX (to hold final result)
     mov bl, 100          ; Multiplier for hundreds place
-    
+   
     ; Read hundreds place
     mov ah, 1
     int 21h
@@ -317,7 +326,7 @@ MAIN PROC
     sub al, 30h          
     mul bl
     mov dx, ax
-    
+   
     ; Read tens place
     mov bl, 10
     mov ah, 1
@@ -326,7 +335,7 @@ MAIN PROC
     sub al, 30h
     mul bl
     add dx, ax
-    
+   
     ; Read units place
     mov ah, 1
     int 21h
@@ -337,15 +346,15 @@ MAIN PROC
     call VALIDATE_MARKS
     ; Store the Marks
     mov marks[si], dl
-    
+   
     PrintString newline
     PrintString indent2
-    
+   
     inc si
     loop input_marks
-    
+   
     PrintString newline
-    
+   
     ;---;
     ;MIM;
     ;---;
@@ -384,7 +393,7 @@ grade_D:
 next_student:
     INC SI
     LOOP assign_grades_and_cgpa
-    
+   
 ;---------shows unsorted grades----------;    
     call DisplayGrades
 ;----------------------------------------;
@@ -457,14 +466,14 @@ Adrita:
 
     ; Display the grades and summary
     call DisplayGrades
-    
+   
     PrintString average_label
     ; Calculate the average
     call CalcAverage
-    
-    
-    
-    
+   
+   
+   
+   
     exit:    
     ; Exit to DOS
     MOV AX, 4C00H
@@ -488,7 +497,7 @@ InitializeData PROC
     xor si, si             ; Array index
     mov ch, 0h
     mov cl, student_count  ; Number of students
-    
+   
     InitLoop:
         mov ax, si
         mov student_ids[si], al ; Assign Student ID as the index
@@ -514,11 +523,11 @@ CalcAverage PROC
     push cx
     push dx
     push si
-    
+   
     ; initializing
-    mov ax, 0             
+    mov ax, 0            
     mov ch, 0
-    mov cl, student_count ;loop counter 
+    mov cl, student_count ;loop counter
     mov si, offset marks  ; Point SI to the start of the marks array
 
     SumLoop:
@@ -526,28 +535,28 @@ CalcAverage PROC
         mov bh, 0
         add ax, bx            ; Add BX to the running total (AX)
         inc si             ; Move to the next mark
-        loop SumLoop         
+        loop SumLoop        
 
     ; AX has sum
     mov dx, 0
     mov bh, 0
     mov bl, student_count
     div bx
-    ;AX now has quotient 
-    mov rem, ax     
+    ;AX now has quotient
+    mov rem, ax    
     NumLength ax       ;sets bx
     call PrintDigits   ;total sum
     PrintChar '.'
-    
+   
     ;fractional part (upto two decimal places)
-    mov ax, dx       
+    mov ax, dx      
     mov bx, 100           ; Multiply remainder by 100 to get fractional part
     mul bx
     mov bh, 0
-    mov bl, student_count 
+    mov bl, student_count
     div bx                ; AX = fractional part (two digits), DX = remainder
 
-    mov rem, ax           
+    mov rem, ax          
     NumLength ax          
     call PrintDigits      
 
@@ -568,15 +577,15 @@ DisplayGrades PROC
     push si
     push cx
 
-    
+   
     PrintString header
  
 
     ; Initializing
     mov si, 0h                
     mov ch, 0h
-    mov cl, student_count     
-    
+    mov cl, student_count    
+   
 
     ; Printing Table Rows
     DisplayLoop:
@@ -584,11 +593,11 @@ DisplayGrades PROC
         PrintRow student_ids[si], marks[si], grades[si]
         inc si
         loop DisplayLoop
-        
-    
+       
+   
     PrintString footer
 
-    
+   
     pop cx
     pop si
     pop dx
@@ -598,7 +607,7 @@ DisplayGrades ENDP
 
 PrintSpaces PROC
     ; Input: CX = number of spaces to print
-    
+   
     push ax
     push dx
 
@@ -627,22 +636,22 @@ PrintDigits PROC
         mov dx, 0
         div bx              ; Quotient in AX, remainder in DX
         mov rem, dx         ; Update remainder
-    
+   
         ; Print the digit
         mov dl, al
         add dl, '0'
         mov ah, 2
         int 21h
-    
-    
+   
+   
         ; Update divisor (BX /= 10)
         mov ax, bx
         mov dx, 0
-        
+       
         mov bx, 10
         div bx
         mov bx, ax          ; Updated divisor
-    
+   
         cmp bx, 0
         jg PrintDigitsLoop  ; Loop until divisor becomes 0
 
@@ -666,35 +675,35 @@ VALIDATE_MARKS PROC
 
 
     MOV AX, 100d        
-    CMP DX, AX         
+    CMP DX, AX        
     ;int 3h
     JG INVALID_MARKS   ; Jump if DX > 100
 
-    POP DX             
-    POP BX             
-    POP AX             
+    POP DX            
+    POP BX            
+    POP AX            
     RET                ; Return if valid marks
 
 INVALID_MARKS:
     PrintString newline
     PrintString msg1              
-    MOV AX, 4C00H       
+    MOV AX, 4C00H      
     INT 21H             ; Terminate the program
 
 VALIDATE_MARKS ENDP
 
 
 VALIDATE_DIGIT PROC
-    PUSH AX         
-    PUSH DX         
+    PUSH AX        
+    PUSH DX        
 
-    CMP AL, '0'       
+    CMP AL, '0'      
     JL INVALID_INPUT   ; Jump to terminate if AL < '0'
-    CMP AL, '9'       
+    CMP AL, '9'      
     JG INVALID_INPUT   ; Jump to terminate if AL > '9'
 
-    POP DX           
-    POP AX           
+    POP DX          
+    POP AX          
     RET                ; Return if valid input
 
 INVALID_INPUT:
@@ -702,9 +711,10 @@ INVALID_INPUT:
     PrintString msg1            
     MOV AX, 4C00H      
     INT 21H            ; Terminate the program
-            
+           
 
 VALIDATE_DIGIT ENDP
+
 
 ;---;
 ;MIM;
